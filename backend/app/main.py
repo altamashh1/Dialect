@@ -5,8 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import check_production_readiness, settings
-from app.db import init_db
+from app.db import SessionLocal, init_db
 from app.routers import auth, datasets, stats
+from app.services.demo import seed_demo
 
 
 def _configure_logging() -> None:
@@ -33,10 +34,18 @@ async def lifespan(app: FastAPI):
         detail = "\n".join(f"  - {p}" for p in problems)
         raise RuntimeError(f"Refusing to start in production:\n{detail}")
     init_db()
+    # Re-seeded on every boot: free hosting wipes the disk on each restart, so a
+    # demo account created once by hand would not survive the first redeploy.
+    if settings.demo_mode:
+        db = SessionLocal()
+        try:
+            seed_demo(db)
+        finally:
+            db.close()
     yield
 
 
-app = FastAPI(title="Chat with your data", lifespan=lifespan)
+app = FastAPI(title="Dialect", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,4 +62,6 @@ app.include_router(stats.router)
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok"}
+    """Liveness probe. `demo` tells the login screen whether to offer
+    one-click access, so the button never appears where it would 404."""
+    return {"status": "ok", "demo": settings.demo_mode}

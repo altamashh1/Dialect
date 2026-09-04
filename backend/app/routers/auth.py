@@ -13,8 +13,10 @@ from app.auth import (
     new_user_id,
     verify_password,
 )
+from app.config import settings
 from app.db import get_db
 from app.models import User
+from app.services.demo import demo_login_id
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -53,6 +55,23 @@ def login(body: Credentials, db: Session = Depends(get_db)) -> TokenResponse:
     user = db.query(User).filter(User.email == email).first()
     if user is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(401, "Incorrect email or password.")
+    return TokenResponse(token=create_token(user.id), email=user.email)
+
+
+@router.post("/demo", response_model=TokenResponse)
+def demo_signin(db: Session = Depends(get_db)) -> TokenResponse:
+    """One-click sign-in to the shared demo account.
+
+    Takes no credentials on purpose: the demo password would otherwise have to
+    ship in the frontend bundle. Returns 404 unless DEMO_MODE is on, so a
+    production deployment without a demo exposes no extra surface.
+    """
+    if not settings.demo_mode:
+        raise HTTPException(404, "Demo access is not enabled.")
+
+    user = db.query(User).filter(User.email == demo_login_id()).first()
+    if user is None:
+        raise HTTPException(503, "The demo account is still being prepared.")
     return TokenResponse(token=create_token(user.id), email=user.email)
 
 

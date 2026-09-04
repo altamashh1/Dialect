@@ -10,7 +10,7 @@ Upload a CSV, Excel or JSON file, ask *"which region grew fastest last quarter?"
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![pandas](https://img.shields.io/badge/pandas-2.2-150458?logo=pandas&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-137%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-145%20passing-brightgreen)
 
 ---
 
@@ -251,7 +251,7 @@ Exposed two ways:
 | **Database** | SQLAlchemy 2.0 ORM, SQLite (development), PostgreSQL via psycopg 3 (production) |
 | **Object storage** | AWS S3 via boto3, S3-compatible targets (Supabase, MinIO), local filesystem |
 | **Authentication** | JSON Web Tokens (PyJWT), bcrypt password hashing, role-based admin access |
-| **Testing** | pytest, httpx, 137 automated tests |
+| **Testing** | pytest, httpx, 145 automated tests |
 | **DevOps** | Docker, Render, Vercel, environment-driven configuration, CORS management |
 
 ---
@@ -309,7 +309,7 @@ dialect/
 │   │       ├── cache.py             TTL + LRU cache
 │   │       ├── storage.py           Local and S3 blob storage
 │   │       └── telemetry.py         Cost and latency instrumentation
-│   ├── tests/                   137 tests across 15 modules
+│   ├── tests/                   145 tests across 16 modules
 │   ├── Dockerfile               Non-root production container
 │   └── requirements.txt
 ├── frontend/
@@ -397,7 +397,7 @@ cd backend
 python -m pytest -q
 ```
 
-**137 tests** across 15 modules. Coverage is weighted toward the parts where failure is expensive:
+**145 tests** across 16 modules. Coverage is weighted toward the parts where failure is expensive:
 
 | Suite | Focus |
 |---|---|

@@ -32,6 +32,18 @@ class Settings(BaseSettings):
     # Comma-separated browser origins allowed to call the API.
     cors_origins: str = "http://localhost:5173"
 
+    # Public demo. Seeds a shared `demo` account (holding sample_sales.csv) at
+    # startup and enables POST /api/auth/demo, so a visitor can try the app
+    # without creating an account. Off by default: it is a deployment choice,
+    # not something a local dev run should silently turn on.
+    demo_mode: bool = False
+    demo_login: str = "demo"
+    demo_password: str = "demo1234"
+
+    # Password used by seed_admin.py. Deliberately empty: the script refuses to
+    # run without it, so an admin password is never committed to the repo.
+    admin_password: str = ""
+
     # Storage: "local" (default, no config) or "s3" (AWS S3 / Supabase / MinIO)
     storage_backend: str = "local"
     s3_bucket: str = ""

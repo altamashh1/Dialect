@@ -43,6 +43,13 @@ export const signup = (email, password) =>
 export const login = (email, password) =>
   request("/api/auth/login", { method: "POST", body: { email, password } });
 
+// One-click demo sign-in. Takes no credentials: the backend issues a token
+// for the shared demo account, so no password ships in this bundle.
+export const demoSignin = () => request("/api/auth/demo", { method: "POST" });
+
+// `demo` tells the login screen whether to offer that button.
+export const fetchHealth = () => request("/api/health");
+
 export const fetchMe = () => request("/api/auth/me");
 
 export const listDatasets = () => request("/api/datasets");

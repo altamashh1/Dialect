@@ -86,16 +86,24 @@ deploys to work, list them comma-separated:
 CORS_ORIGINS=https://your-app.vercel.app,https://www.yourdomain.com
 ```
 
-## Step 5 — create the admin user
+## Step 5 — the demo account and the admin user
 
-The local `Admin` account lives in your dev SQLite file, not in Postgres. On
-Render, open the service **Shell** and run:
+**Demo account.** Set `DEMO_MODE=true` in the Render environment. On every boot
+the API seeds a shared `demo` account holding `sample_sales.csv`, and the login
+screen shows a **"Try the demo — no signup"** button. This is re-seeded on each
+start on purpose: free instances wipe their disk, so an account created once by
+hand would vanish on the first redeploy.
+
+Note that the demo account is *shared* — anything one visitor uploads is visible
+to the next. Delete `DEMO_MODE` to turn it off.
+
+**Admin account.** `seed_admin.py` reads `ADMIN_PASSWORD` from the environment
+and refuses to run without one, so no admin password lives in this public repo.
+Set `ADMIN_PASSWORD` in the Render environment, then open the service **Shell**:
 
 ```bash
 python seed_admin.py
 ```
-
-Change the seeded password immediately — it is in the repo.
 
 ## Verifying
 
