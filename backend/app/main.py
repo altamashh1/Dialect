@@ -103,7 +103,12 @@ def _safe_asset(relative: str) -> Path | None:
 
 if _INDEX.is_file():
 
-    @app.get("/{full_path:path}", include_in_schema=False)
+    # HEAD as well as GET: FastAPI, unlike plain Starlette, does not add HEAD to
+    # a GET route, so a platform probing `HEAD /` gets a 405 and may read the
+    # service as unhealthy.
+    @app.api_route(
+        "/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False
+    )
     def serve_spa(full_path: str) -> FileResponse:
         # Registered last, so every route above still wins. Unmatched /api paths
         # must 404 as JSON rather than silently returning the HTML shell.

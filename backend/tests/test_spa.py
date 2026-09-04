@@ -70,3 +70,9 @@ def test_real_assets_are_served():
 def test_safe_asset_rejects_the_root_itself():
     assert _safe_asset("") is None
     assert _safe_asset(".") is None
+
+
+def test_head_on_the_shell_is_allowed():
+    """Platform probes use HEAD; FastAPI does not add it to a GET route, and a
+    405 there can make a host read the service as unhealthy."""
+    assert client.head("/").status_code == 200
