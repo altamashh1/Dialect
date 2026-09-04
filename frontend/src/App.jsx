@@ -128,7 +128,7 @@ function Workspace({ email, onLogout }) {
       {showStats && <Stats onClose={() => setShowStats(false)} />}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-          <h1 className="text-lg font-semibold">Chat with your data</h1>
+          <h1 className="text-lg font-semibold">Dialect</h1>
           <div className="flex items-center gap-3">
             <label className="cursor-pointer rounded-lg bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700">
               {busy ? "Uploading…" : dataset ? "New file" : "Upload file"}

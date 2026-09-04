@@ -1,34 +1,44 @@
 # Deploying
 
-Frontend on Vercel, API + Postgres on Render, uploads in S3-compatible storage.
+**One Render service serves both the API and the React app.** The FastAPI
+process mounts `frontend/dist` when it exists, so there is a single origin, a
+single URL, and no CORS between frontend and backend at all.
 
 Everything in the repo is ready. What remains needs your accounts, so it is
 written as steps to run rather than something the code can do for you.
 
-> The `backend/Dockerfile` has **not** been built locally — Docker is not
-> installed on the development machine. Build it once before pushing (see
-> step 0) so a typo surfaces on your laptop rather than in a Render deploy log.
+## Render service settings
+
+| Field | Value |
+|---|---|
+| Language | **Python 3** (not Docker) |
+| Branch | `main` |
+| Root Directory | `backend` |
+| Build Command | `pip install -r requirements.txt && cd ../frontend && npm ci && npm run build` |
+| Start Command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| Health Check Path | `/api/health` |
+
+Python is pinned to 3.12 by `.python-version`. Render otherwise picks the
+newest release, and `pydantic-core` has no wheel for it -- pip then tries to
+compile it from Rust source and dies on Render's read-only cargo cache.
+
+Do **not** set `VITE_API_BASE_URL`. Leaving it unset makes the frontend issue
+relative requests, which is what single-origin serving needs.
 
 ## What you need
 
 | Thing | Why | Free? |
 |---|---|---|
 | Render account | API container + Postgres | yes |
-| Vercel account | static frontend | yes |
 | S3-compatible bucket | Render's disk is wiped on every restart | Supabase free tier, or AWS S3 |
 | Gemini API key | you already have one in `backend/.env` | yes |
 
-## The ordering problem
+## No ordering problem
 
-Two values reference each other:
-
-- Render needs `CORS_ORIGINS` = the Vercel URL
-- Vercel needs `VITE_API_BASE_URL` = the Render URL
-
-Neither exists until the other is deployed, so deploy the API first with
-`CORS_ORIGINS` unset, then come back and fill it in (step 4). Skipping the
-return trip is the single most common way this deploy fails: the site loads
-fine and every request dies as a CORS error in the browser console.
+Serving the frontend from the API removes the usual chicken-and-egg between
+`CORS_ORIGINS` and the frontend URL: there is only one URL. Set `CORS_ORIGINS`
+to your Render URL anyway -- `check_production_readiness()` rejects the
+`localhost` default in production.
 
 ## Step 0 — build the image once, locally
 

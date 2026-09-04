@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Chat with your data - launcher
+title Dialect - launcher
 
 REM ---- paths --------------------------------------------------------------
 set "ROOT=%~dp0"

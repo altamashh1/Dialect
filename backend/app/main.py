@@ -1,8 +1,10 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.config import check_production_readiness, settings
 from app.db import SessionLocal, init_db
@@ -65,3 +67,51 @@ def health() -> dict:
     """Liveness probe. `demo` tells the login screen whether to offer
     one-click access, so the button never appears where it would 404."""
     return {"status": "ok", "demo": settings.demo_mode}
+
+
+# --- Single-origin frontend -------------------------------------------------
+#
+# When `frontend/dist` has been built, this process serves the React app as well
+# as the API. One origin means no CORS preflight, no VITE_API_BASE_URL baked in
+# at build time, and one URL to put on a CV -- at the cost of the API's cold
+# start now gating the first page load too.
+#
+# Mounted only when the build exists, so a backend-only run (tests, local dev
+# against the Vite dev server) behaves exactly as before.
+
+_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+_INDEX = _DIST / "index.html"
+
+
+def _safe_asset(relative: str) -> Path | None:
+    """Resolve a request path inside the build directory, or None.
+
+    `relative` is attacker-controlled, so resolve it and confirm the result is
+    still under _DIST -- otherwise `../../etc/passwd` reads whatever the process
+    can reach.
+    """
+    if not relative:
+        return None
+    try:
+        candidate = (_DIST / relative).resolve()
+    except (OSError, ValueError):
+        return None
+    if candidate == _DIST or _DIST not in candidate.parents:
+        return None
+    return candidate if candidate.is_file() else None
+
+
+if _INDEX.is_file():
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_spa(full_path: str) -> FileResponse:
+        # Registered last, so every route above still wins. Unmatched /api paths
+        # must 404 as JSON rather than silently returning the HTML shell.
+        if full_path.startswith("api/"):
+            raise HTTPException(404, "Not found")
+
+        asset = _safe_asset(full_path)
+        if asset is not None:
+            return FileResponse(asset)
+        # Client-side routing: unknown paths are the app's problem, not 404s.
+        return FileResponse(_INDEX)
