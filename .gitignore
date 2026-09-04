@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Env
+.env
+.env.local
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Data / uploads
+backend/uploads/
+backend/app.db
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/launch.json
+
+# Personal documents — not part of the project, must not be published
+Altamash_CV_preview.pdf*
+cv tex.txt*
+ff.pdf
+*.bak
+*.prev
+
+# Pre-build planning notes (personal)
+llm idea.md
