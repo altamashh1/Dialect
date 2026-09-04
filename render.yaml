@@ -1,31 +1,53 @@
-# Render Blueprint: API + Postgres. Create with "New > Blueprint" pointed at
-# this repo. Values marked `sync: false` must be filled in the dashboard --
-# they are secrets and deliberately not stored here.
+# Render Blueprint: one web service (API + React app) and a Postgres database.
+#
+# Create with "New > Blueprint" pointed at this repo. Render provisions both
+# services, wires DATABASE_URL between them and generates JWT_SECRET.
+#
+# Values marked `sync: false` are secrets: Render prompts for them in the
+# dashboard and they are deliberately not stored in this file.
 services:
   - type: web
-    name: cwyd-api
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    name: dialect
+    runtime: python
     plan: free
+    rootDir: backend
+    # The API process also serves frontend/dist, so the React app is built here
+    # rather than deployed separately. One origin means no CORS between the two
+    # and one URL for the whole app.
+    buildCommand: pip install -r requirements.txt && cd ../frontend && npm ci && npm run build
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
+      # Render otherwise builds on the newest Python, which has no pydantic-core
+      # wheel; pip then compiles it from Rust source and fails on the read-only
+      # cargo cache. Also pinned by .python-version.
+      - key: PYTHON_VERSION
+        value: "3.12.3"
       - key: ENVIRONMENT
         value: production
-      # RLIMIT_DATA on the sandbox child (see _limits.py). The API process
-      # itself holds uvicorn, pandas and the parsed DataFrame -- roughly 200MB
-      # -- and both live inside the instance's total RAM, 512MB on the free
-      # plan. 256 + ~200 leaves room; go higher only with a larger instance,
-      # or the container is OOM-killed before the sandbox's own limit can fire
-      # and return a clean error.
+      # Seeds the shared `demo` account with sample_sales.csv on every boot and
+      # shows the "Try the demo" button, so a visitor needs no signup.
+      - key: DEMO_MODE
+        value: "true"
+      # RLIMIT_DATA on the sandbox child (see _limits.py). The API process itself
+      # holds uvicorn, pandas and the parsed DataFrame -- roughly 200MB -- and
+      # both live inside the instance's total RAM, 512MB on the free plan.
+      # 256 + ~200 leaves room; go higher only with a larger instance, or the
+      # container is OOM-killed before the sandbox's own limit can fire and
+      # return a clean error.
       - key: SANDBOX_MEMORY_MB
         value: "256"
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL
         fromDatabase:
-          name: cwyd-db
+          name: dialect-db
           property: connectionString
+      # Frontend and API share an origin, so no cross-origin request is ever
+      # made. Empty is both correct and enough to satisfy the production check,
+      # which only rejects the localhost default.
+      - key: CORS_ORIGINS
+        value: ""
       # Uploads must not live on the container filesystem: it is wiped on every
       # deploy and restart. See check_production_readiness() in config.py.
       - key: STORAGE_BACKEND
@@ -42,11 +64,11 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
-      # No trailing slash. Must match the Vercel domain exactly or the browser
-      # blocks every request as a CORS failure.
-      - key: CORS_ORIGINS
+      # Used by seed_admin.py, which refuses to run without it. Not needed to
+      # boot -- set it only when you want an admin account.
+      - key: ADMIN_PASSWORD
         sync: false
 
 databases:
-  - name: cwyd-db
+  - name: dialect-db
     plan: free
