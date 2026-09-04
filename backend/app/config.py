@@ -44,7 +44,8 @@ class Settings(BaseSettings):
     # run without it, so an admin password is never committed to the repo.
     admin_password: str = ""
 
-    # Storage: "local" (default, no config) or "s3" (AWS S3 / Supabase / MinIO)
+    # Storage: "local" (default, no config), "db" (bytes in the database -- no
+    # object store or persistent disk needed), or "s3" (AWS S3 / Supabase / MinIO)
     storage_backend: str = "local"
     s3_bucket: str = ""
     s3_endpoint_url: str = ""  # set for Supabase Storage or MinIO; blank for AWS
@@ -72,6 +73,10 @@ settings = Settings()
 
 INSECURE_JWT_SECRETS = {"dev-secret-change-me", "change-me-to-a-long-random-string", ""}
 
+# Backends whose data outlives a container restart. "local" is not one of them:
+# it writes to a filesystem that managed hosts wipe on every deploy.
+PERSISTENT_STORAGE_BACKENDS = frozenset({"s3", "db"})
+
 
 def check_production_readiness(s: Settings = settings) -> list[str]:
     """Return fatal misconfigurations. Empty list means the config is safe."""
@@ -83,10 +88,10 @@ def check_production_readiness(s: Settings = settings) -> list[str]:
         problems.append("JWT_SECRET is unset or still the development default")
     if len(s.jwt_secret) < 32:
         problems.append("JWT_SECRET is shorter than 32 characters")
-    if s.storage_backend != "s3":
+    if s.storage_backend not in PERSISTENT_STORAGE_BACKENDS:
         problems.append(
-            "STORAGE_BACKEND is not 's3'; container filesystems are ephemeral "
-            "and uploads would be lost on every restart"
+            "STORAGE_BACKEND is not 's3' or 'db'; container filesystems are "
+            "ephemeral and uploads would be lost on every restart"
         )
     if s.database_url.startswith("sqlite"):
         problems.append("DATABASE_URL still points at SQLite on an ephemeral disk")

@@ -50,18 +50,14 @@ services:
         value: ""
       # Uploads must not live on the container filesystem: it is wiped on every
       # deploy and restart. See check_production_readiness() in config.py.
+      #
+      # "db" keeps file bytes in the Postgres above, so this deploy needs no
+      # object store and no bucket. Switch to "s3" and add S3_BUCKET,
+      # S3_ENDPOINT_URL, S3_REGION and AWS credentials when uploads outgrow a
+      # relational table -- storage.py puts both behind one interface, so
+      # nothing else changes.
       - key: STORAGE_BACKEND
-        value: s3
-      - key: S3_BUCKET
-        sync: false
-      - key: S3_ENDPOINT_URL
-        sync: false
-      - key: S3_REGION
-        value: us-east-1
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
+        value: db
       - key: GEMINI_API_KEY
         sync: false
       # Used by seed_admin.py, which refuses to run without it. Not needed to

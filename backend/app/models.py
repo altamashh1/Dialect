@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -23,6 +23,21 @@ class User(Base):
     datasets: Mapped[list["DatasetRecord"]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
     )
+
+
+class Blob(Base):
+    """Uploaded file bytes, for STORAGE_BACKEND=db.
+
+    Lets a deployment persist uploads with nothing but a database -- no object
+    store, no persistent disk. `key` is the same opaque storage key the other
+    backends use, so the three are interchangeable.
+    """
+
+    __tablename__ = "blobs"
+
+    key: Mapped[str] = mapped_column(String(512), primary_key=True)
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class DatasetRecord(Base):

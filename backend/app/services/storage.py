@@ -4,8 +4,11 @@
   local development and debugging.
 - S3Storage: any S3-compatible target (AWS S3, Supabase Storage, MinIO).
   Enable with STORAGE_BACKEND=s3 plus S3_BUCKET (+ optional S3_ENDPOINT_URL).
+- DatabaseStorage: bytes in a `blobs` table. Enable with STORAGE_BACKEND=db.
+  For deployments that have a database but no object store and no persistent
+  disk -- a managed free tier, typically.
 
-Both expose the same interface, keyed by an opaque string `key`:
+All three expose the same interface, keyed by an opaque string `key`:
     save(key, data) -> None
     load(key) -> bytes
     delete(key) -> None
@@ -17,6 +20,8 @@ from pathlib import Path
 from typing import Protocol
 
 from app.config import settings
+from app.db import SessionLocal
+from app.models import Blob
 
 UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads"
 
@@ -99,8 +104,56 @@ class S3Storage:
         self._client.delete_object(Bucket=self.bucket, Key=validate_key(key))
 
 
+class DatabaseStorage:
+    """File bytes in a `blobs` table -- no object store, no persistent disk.
+
+    Deliberately not how you store blobs at scale: every read pulls the whole
+    file through the database connection, and backups grow with uploads. What
+    makes it reasonable here is MAX_UPLOAD_MB bounding each row, and the fact
+    that moving to S3 is a config change rather than a rewrite, because both
+    sit behind the same three methods.
+    """
+
+    def save(self, key: str, data: bytes) -> None:
+        key = validate_key(key)
+        db = SessionLocal()
+        try:
+            row = db.get(Blob, key)
+            if row is None:
+                db.add(Blob(key=key, data=data))
+            else:
+                row.data = data  # same key, new bytes: keep one row
+            db.commit()
+        finally:
+            db.close()
+
+    def load(self, key: str) -> bytes:
+        key = validate_key(key)
+        db = SessionLocal()
+        try:
+            row = db.get(Blob, key)
+            if row is None:
+                raise FileNotFoundError(key)
+            return row.data
+        finally:
+            db.close()
+
+    def delete(self, key: str) -> None:
+        key = validate_key(key)
+        db = SessionLocal()
+        try:
+            row = db.get(Blob, key)
+            if row is not None:
+                db.delete(row)
+                db.commit()
+        finally:
+            db.close()
+
+
 @lru_cache(maxsize=1)
 def get_storage() -> Storage:
     if settings.storage_backend == "s3":
         return S3Storage()
+    if settings.storage_backend == "db":
+        return DatabaseStorage()
     return LocalStorage()

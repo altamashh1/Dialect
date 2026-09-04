@@ -10,7 +10,7 @@ Upload a CSV, Excel or JSON file, ask *"which region grew fastest last quarter?"
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![pandas](https://img.shields.io/badge/pandas-2.2-150458?logo=pandas&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-145%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-162%20passing-brightgreen)
 
 ---
 
@@ -57,7 +57,7 @@ The engineering problem this creates is the interesting one: **you are now execu
 | **Answer verification** | Deterministic invariant checks plus an independent LLM critic produce a `high / medium / low` confidence rating |
 | **Automatic visualization** | Result shape is analysed by heuristics to pick scalar, table, bar, line or scatter — no extra LLM call |
 | **JWT authentication** | Stateless auth with bcrypt password hashing and per-user dataset isolation |
-| **Pluggable object storage** | Local filesystem by default; AWS S3, Supabase Storage or MinIO in production |
+| **Pluggable blob storage** | Three interchangeable backends behind one interface: local filesystem, the database itself, or AWS S3 / Supabase / MinIO |
 | **Query caching** | In-process TTL + LRU cache eliminates repeat model spend on repeated questions |
 | **Cost and latency telemetry** | Per-call token counts, latency percentiles and estimated USD cost on a live dashboard |
 | **Production safety checks** | The API refuses to boot in production on insecure defaults such as a development JWT secret |
@@ -249,9 +249,9 @@ Exposed two ways:
 | **Data processing** | pandas, openpyxl, NumPy |
 | **Artificial intelligence** | Google Gemini (`google-genai`), prompt engineering, structured output validation |
 | **Database** | SQLAlchemy 2.0 ORM, SQLite (development), PostgreSQL via psycopg 3 (production) |
-| **Object storage** | AWS S3 via boto3, S3-compatible targets (Supabase, MinIO), local filesystem |
+| **Object storage** | AWS S3 via boto3, S3-compatible targets (Supabase, MinIO), database blobs, local filesystem |
 | **Authentication** | JSON Web Tokens (PyJWT), bcrypt password hashing, role-based admin access |
-| **Testing** | pytest, httpx, 145 automated tests |
+| **Testing** | pytest, httpx, 162 automated tests |
 | **DevOps** | Docker, Render, Vercel, environment-driven configuration, CORS management |
 
 ---
@@ -307,9 +307,9 @@ dialect/
 │   │       ├── verify.py            Invariants and LLM critic
 │   │       ├── viz.py               Chart-type heuristics
 │   │       ├── cache.py             TTL + LRU cache
-│   │       ├── storage.py           Local and S3 blob storage
+│   │       ├── storage.py           Local, database and S3 blob storage
 │   │       └── telemetry.py         Cost and latency instrumentation
-│   ├── tests/                   145 tests across 16 modules
+│   ├── tests/                   162 tests across 18 modules
 │   ├── Dockerfile               Non-root production container
 │   └── requirements.txt
 ├── frontend/
@@ -384,7 +384,7 @@ A sample dataset, [`sample_sales.csv`](sample_sales.csv), is included so you can
 | `MAX_UPLOAD_MB` | `25` | Upload size limit, enforced while streaming |
 | `VERIFY_ANSWERS` | `true` | Enable invariant and critic verification |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed browser origins |
-| `STORAGE_BACKEND` | `local` | `local` or `s3` |
+| `STORAGE_BACKEND` | `local` | `local`, `db` (bytes in the database) or `s3` |
 | `S3_BUCKET` | — | Required when `STORAGE_BACKEND=s3` |
 | `S3_ENDPOINT_URL` | — | Set for Supabase Storage or MinIO; blank for AWS |
 
@@ -397,7 +397,7 @@ cd backend
 python -m pytest -q
 ```
 
-**145 tests** across 16 modules. Coverage is weighted toward the parts where failure is expensive:
+**162 tests** across 18 modules. Coverage is weighted toward the parts where failure is expensive:
 
 | Suite | Focus |
 |---|---|
@@ -407,7 +407,7 @@ python -m pytest -q
 | `test_verify.py` | Invariant checks and confidence classification |
 | `test_auth.py` | JWT issuing, expiry, password hashing |
 | `test_datasets.py` | Upload validation, size caps, per-user isolation |
-| `test_storage.py` | Local and S3 backends against one interface |
+| `test_storage.py` | Local, database and S3 backends against one interface |
 | `test_viz.py` | Chart selection across result shapes |
 | `test_cache.py` | TTL expiry and LRU eviction |
 | `test_telemetry.py` | Cost accounting and aggregation |
@@ -435,6 +435,6 @@ The application **refuses to start in production** on insecure defaults — a de
 
 **Cache keyed on dataset plus normalised question.** Repeated questions are the common case in exploratory analysis, and each cache hit is a model call not paid for.
 
-**Storage behind one interface.** `LocalStorage` and `S3Storage` expose an identical surface, so development stays zero-config while production runs on object storage — with no branching at any call site.
+**Storage behind one interface.** `LocalStorage`, `DatabaseStorage` and `S3Storage` expose an identical surface, so development stays zero-config, a small deployment persists uploads with nothing but its database, and scaling to object storage is a single environment variable — with no branching at any call site.
 
 **Verification that never blocks.** A critic model is itself fallible. Letting it veto answers would trade one failure mode for a worse one, so it annotates confidence instead of gatekeeping.

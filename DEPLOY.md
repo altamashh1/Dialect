@@ -30,7 +30,6 @@ relative requests, which is what single-origin serving needs.
 | Thing | Why | Free? |
 |---|---|---|
 | Render account | API container + Postgres | yes |
-| S3-compatible bucket | Render's disk is wiped on every restart | Supabase free tier, or AWS S3 |
 | Gemini API key | you already have one in `backend/.env` | yes |
 
 ## No ordering problem
@@ -49,13 +48,17 @@ docker run --rm -p 8000:8000 --env-file .env cwyd-api
 curl localhost:8000/api/health   # {"status":"ok"}
 ```
 
-## Step 1 — storage bucket
+## Step 1 — storage
 
-Create a bucket (Supabase: Storage → New bucket, private). Note the bucket name,
-the S3 endpoint, and an access key pair.
+Nothing to do. The Blueprint sets `STORAGE_BACKEND=db`, so uploaded files are
+stored in the Postgres it creates -- no bucket, no object store, no persistent
+disk. Render wipes the container filesystem on every restart, which is why
+`local` is rejected in production.
 
-- Supabase endpoint: `https://<project>.supabase.co/storage/v1/s3`
-- AWS S3: leave `S3_ENDPOINT_URL` blank and set `S3_REGION`
+Move to object storage when uploads outgrow a table: set `STORAGE_BACKEND=s3`
+plus `S3_BUCKET`, `S3_ENDPOINT_URL` (Supabase/MinIO only), `S3_REGION` and AWS
+credentials. Nothing else changes -- both sit behind the same interface in
+`services/storage.py`.
 
 ## Step 2 — API and database on Render
 
